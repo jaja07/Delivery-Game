@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rescue-bot"
+version = "0.1.0"
+description = "RescueBot Pygame environment"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "numpy>=1.26",
+    "pygame>=2.5",
+    "torch>=2.0.0",
+]
+
+[project.scripts]
+rescue-bot = "rescue_bot.main:main"
+
+[tool.setuptools]
+packages = ["rescue_bot"]
+
+# --- Configuration spécifique à uv pour PyTorch avec GPU ---
+
+# On déclare le dépôt officiel de PyTorch pour CUDA 12.4
+[[tool.uv.index]]
+name = "pytorch-cu124"
+url = "https://download.pytorch.org/whl/cu124"
+explicit = true
+
+# On force uv à aller chercher PyTorch sur ce dépôt spécifique
+[tool.uv.sources]
+torch = { index = "pytorch-cu124" }
