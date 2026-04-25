@@ -4,7 +4,9 @@ from .config import WIN_W, WIN_H, CELL, GRID_H, GRID_W, C, FPS, HUD_H, Cell
 from .env import RescueBotEnv
 
 class Renderer:
+    """Classe responsable de l'affichage de l'environnement avec Pygame."""
     def __init__(self, env: RescueBotEnv):
+        """Initialise Pygame, la fenêtre, les polices et les références d'environnement."""
         pygame.init()
         self.env    = env
         self.screen = pygame.display.set_mode((WIN_W, WIN_H))
@@ -16,6 +18,7 @@ class Renderer:
         self._fire_tick = 0
 
     def draw(self, total_reward: float = 0.0, last_event: str = ""):
+        """Dessine une frame complète: grille, entités, overlay et HUD."""
         self._fire_tick += 1
         self.screen.fill(C["bg"])
         self._draw_grid()
@@ -28,6 +31,7 @@ class Renderer:
         pygame.display.flip()
 
     def _draw_grid(self):
+        """Dessine le fond de la carte avec murs, cases vides et quadrillage."""
         for r in range(GRID_H):
             for c in range(GRID_W):
                 rect = pygame.Rect(c * CELL, r * CELL, CELL, CELL)
@@ -44,6 +48,7 @@ class Renderer:
                 pygame.draw.rect(self.screen, C["grid"], rect, 1)
 
     def _draw_danger_zones(self):
+        """Dessine les zones dangereuses avec un effet de feu animé."""
         tick = self.env.steps
         for r in range(GRID_H):
             for c in range(GRID_W):
@@ -64,6 +69,7 @@ class Renderer:
                     pygame.draw.polygon(self.screen, C["fire2"], points2)
 
     def _draw_evac_zones(self):
+        """Dessine les points d'évacuation et leur symbole visuel."""
         for r in range(GRID_H):
             for c in range(GRID_W):
                 if self.env.grid[r, c] == Cell.EVAC:
@@ -79,6 +85,7 @@ class Renderer:
                     self.screen.blit(txt, (rect.x + 2, rect.bottom - 13))
 
     def _draw_survivors(self):
+        """Dessine les survivants encore actifs sur la carte."""
         for s in self.env.survivors:
             if s["rescued"]:
                 continue
@@ -94,6 +101,7 @@ class Renderer:
             self.screen.blit(txt, (cx - 3, cy + 3))
 
     def _draw_robot(self):
+        """Dessine le robot, ses détails visuels et l'indicateur de portage."""
         env = self.env
         cx  = env.robot_c * CELL + CELL // 2
         cy  = env.robot_r * CELL + CELL // 2
@@ -118,7 +126,7 @@ class Renderer:
         self.screen.blit(lbl, (cx - 8, cy + 6))
 
     def _draw_perception_overlay(self):
-        """Dessine la fenêtre de perception du robot (11x11)."""
+        """Surligne la fenêtre locale de perception centrée sur le robot."""
         P   = self.env.PERCEPTION_R
         env = self.env
         s   = pygame.Surface((CELL, CELL), pygame.SRCALPHA)
@@ -135,6 +143,7 @@ class Renderer:
                          (ox, oy, CELL * (2*P+1), CELL * (2*P+1)), 1)
 
     def _draw_hud(self, total_reward: float, last_event: str):
+        """Dessine la barre d'information: stats de l'épisode et aide clavier."""
         hud_y = GRID_H * CELL
         pygame.draw.rect(self.screen, C["hud_bg"], (0, hud_y, WIN_W, HUD_H))
         pygame.draw.line(self.screen, C["accent"], (0, hud_y), (WIN_W, hud_y), 1)
@@ -166,7 +175,9 @@ class Renderer:
         self.screen.blit(hint, (10, hud_y + 58))
 
     def tick(self, fps: int = FPS):
+        """Cadence la boucle de rendu à la fréquence demandée."""
         self.clock.tick(fps)
 
     def close(self):
+        """Ferme proprement les ressources graphiques Pygame."""
         pygame.quit()
