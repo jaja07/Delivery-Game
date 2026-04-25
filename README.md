@@ -11,6 +11,53 @@ RescueBot est un environnement de simulation RL (Pygame + PyTorch) dans lequel u
 - Rendu Pygame: [rescue_bot/renderer.py](rescue_bot/renderer.py)
 - Point d'entree: [rescue_bot/main.py](rescue_bot/main.py)
 
+## Structure du projet
+
+```text
+Delivery-Game/
+├── LICENSE
+├── .gitignore
+├── .venv/
+├── pyproject.toml
+├── rescue_bot.egg-info/
+├── uv.lock
+├── README.md
+├── test_pygame.py
+├── Version 2-2.zip
+└── rescue_bot/
+	├── __init__.py
+	├── __pycache__/
+	├── config.py
+	├── env.py
+	├── main.py
+	├── policy.py
+	├── renderer.py
+	└── train.ipynb
+```
+
+Descriptions des fichiers (racine):
+
+- [LICENSE](LICENSE): licence du projet.
+- [.gitignore](.gitignore): regles d'exclusion Git (environnements, caches, artefacts).
+- [.venv](.venv): environnement virtuel local (genere, non portable).
+- [pyproject.toml](pyproject.toml): configuration du package Python, dependances et script CLI `rescue-bot`.
+- [rescue_bot.egg-info](rescue_bot.egg-info): metadonnees de packaging generees lors de l'installation editable.
+- [uv.lock](uv.lock): verrouillage des versions pour des installations reproductibles avec uv.
+- [README.md](README.md): documentation du projet.
+- [test_pygame.py](test_pygame.py): script de test/sandbox Pygame historique pour experimentation.
+- [Version 2-2.zip](Version%202-2.zip): archive locale du projet.
+
+Descriptions des fichiers (module `rescue_bot`):
+
+- [rescue_bot/__init__.py](rescue_bot/__init__.py): marque le dossier comme package Python.
+- [rescue_bot/__pycache__](rescue_bot/__pycache__): cache bytecode Python genere automatiquement.
+- [rescue_bot/config.py](rescue_bot/config.py): constantes globales (taille de grille, couleurs, enums d'actions et de cellules).
+- [rescue_bot/env.py](rescue_bot/env.py): logique de l'environnement RL (reset, step, observation, masque d'actions).
+- [rescue_bot/main.py](rescue_bot/main.py): point d'entree du jeu en mode humain ou aleatoire.
+- [rescue_bot/policy.py](rescue_bot/policy.py): modele PolicyNet et utilitaires d'entrainement REINFORCE.
+- [rescue_bot/renderer.py](rescue_bot/renderer.py): rendu Pygame (grille, robot, survivants, HUD, overlays).
+- [rescue_bot/train.ipynb](rescue_bot/train.ipynb): notebook d'experimentation et d'entrainement.
+
 ## Specifications MDP (Markov Decision Process)
 
 ### 1. Espace d'observation (taille: 490)
@@ -159,3 +206,8 @@ rescue-bot
 
 - `uv add <package>` met a jour automatiquement `pyproject.toml` et `uv.lock`.
 - `uv.lock` doit etre versionne pour garantir des installations reproductibles.
+
+
+
+
+
