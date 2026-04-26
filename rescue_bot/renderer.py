@@ -4,22 +4,41 @@ from .config import WIN_W, WIN_H, CELL, GRID_H, GRID_W, C, FPS, HUD_H, Cell
 from .env import RescueBotEnv
 
 class Renderer:
-    """Classe responsable de l'affichage de l'environnement avec Pygame."""
     def __init__(self, env: RescueBotEnv):
-        """Initialise Pygame, la fenêtre, les polices et les références d'environnement."""
         pygame.init()
-        self.env    = env
-        self.screen = pygame.display.set_mode((WIN_W, WIN_H))
-        pygame.display.set_caption("RescueBot — Policy Gradient Environment")
-        self.clock  = pygame.time.Clock()
+        self.env = env
+        
+        # 1. Fenêtre physique visible par l'utilisateur (Redimensionnable)
+        self.window = pygame.display.set_mode((WIN_W, WIN_H), pygame.RESIZABLE)
+        
+        # 2. Surface de dessin interne (Taille fixe)
+        self.screen = pygame.Surface((WIN_W, WIN_H))
+        
+        pygame.display.set_caption("RescueBot — Deep RL")
+        self.clock = pygame.time.Clock()
         self.font_s = pygame.font.SysFont("monospace", 11)
         self.font_m = pygame.font.SysFont("monospace", 13, bold=True)
         self.font_l = pygame.font.SysFont("monospace", 16, bold=True)
         self._fire_tick = 0
+        self.restart_btn_rect = pygame.Rect(WIN_W - 130, GRID_H * CELL + 24, 112, 30)
+
+    def _virtual_mouse_pos(self):
+        """Convertit la position souris fenetre vers la surface de dessin fixe."""
+        raw_mouse_pos = pygame.mouse.get_pos()
+        win_w, win_h = self.window.get_size()
+        scale_x, scale_y = win_w / WIN_W, win_h / WIN_H
+        return (raw_mouse_pos[0] / scale_x, raw_mouse_pos[1] / scale_y)
+
+    def is_restart_click(self, event: pygame.event.Event) -> bool:
+        """Retourne True si l'evenement correspond au clic du bouton Restart HUD."""
+        if event.type != pygame.MOUSEBUTTONDOWN or event.button != 1:
+            return False
+        return self.restart_btn_rect.collidepoint(self._virtual_mouse_pos())
 
     def draw(self, total_reward: float = 0.0, last_event: str = ""):
-        """Dessine une frame complète: grille, entités, overlay et HUD."""
         self._fire_tick += 1
+        
+        # On dessine tout sur la surface interne (self.screen)
         self.screen.fill(C["bg"])
         self._draw_grid()
         self._draw_evac_zones()
@@ -28,6 +47,11 @@ class Renderer:
         self._draw_robot()
         self._draw_perception_overlay()
         self._draw_hud(total_reward, last_event)
+        
+        # 3. MISE À L'ÉCHELLE DYNAMIQUE : On étire l'image sur la fenêtre réelle
+        scaled_surface = pygame.transform.smoothscale(self.screen, self.window.get_size())
+        self.window.blit(scaled_surface, (0, 0))
+        
         pygame.display.flip()
 
     def _draw_grid(self):
@@ -89,8 +113,8 @@ class Renderer:
         for s in self.env.survivors:
             if s["rescued"]:
                 continue
-            cx = s["c"] * CELL + CELL // 2
-            cy = s["r"] * CELL + CELL // 2
+            cx = s["col"] * CELL + CELL // 2
+            cy = s["row"] * CELL + CELL // 2
             r  = CELL // 2 - 4
             pygame.draw.circle(self.screen, C["survivor"], (cx, cy), r)
             pygame.draw.circle(self.screen, (252, 211, 77), (cx, cy), r, 2)
@@ -103,8 +127,8 @@ class Renderer:
     def _draw_robot(self):
         """Dessine le robot, ses détails visuels et l'indicateur de portage."""
         env = self.env
-        cx  = env.robot_c * CELL + CELL // 2
-        cy  = env.robot_r * CELL + CELL // 2
+        cx  = env.robot_x * CELL + CELL // 2
+        cy  = env.robot_y * CELL + CELL // 2
         r   = CELL // 2 - 3
         col = C["robot_c"] if env.carrying else C["robot"]
         # Corps
@@ -133,12 +157,12 @@ class Renderer:
         s.fill((94, 234, 212, 18))
         for dr in range(-P, P + 1):
             for dc in range(-P, P + 1):
-                nr, nc = env.robot_r + dr, env.robot_c + dc
+                nr, nc = env.robot_y + dr, env.robot_x + dc
                 if 0 <= nr < GRID_H and 0 <= nc < GRID_W:
                     self.screen.blit(s, (nc * CELL, nr * CELL))
         # Bordure
-        ox = (env.robot_c - P) * CELL
-        oy = (env.robot_r - P) * CELL
+        ox = (env.robot_x - P) * CELL
+        oy = (env.robot_y - P) * CELL
         pygame.draw.rect(self.screen, (*C["accent"], 180),
                          (ox, oy, CELL * (2*P+1), CELL * (2*P+1)), 1)
 
@@ -167,9 +191,23 @@ class Renderer:
             self.screen.blit(val_txt, (x, hud_y + 26))
             x += max(lbl.get_width(), val_txt.get_width()) + 20
 
+        # Bouton Restart cliquable
+        mouse_pos = self._virtual_mouse_pos()
+        btn_color = C["robot_c"] if self.restart_btn_rect.collidepoint(mouse_pos) else C["robot"]
+        pygame.draw.rect(self.screen, btn_color, self.restart_btn_rect, border_radius=7)
+        pygame.draw.rect(self.screen, C["accent"], self.restart_btn_rect, width=1, border_radius=7)
+        btn_text = self.font_m.render("Restart", True, C["bg"])
+        self.screen.blit(
+            btn_text,
+            (
+                self.restart_btn_rect.x + (self.restart_btn_rect.width - btn_text.get_width()) // 2,
+                self.restart_btn_rect.y + (self.restart_btn_rect.height - btn_text.get_height()) // 2,
+            ),
+        )
+
         # Légende touches
         hint = self.font_s.render(
-            "↑↓←→ déplacer  |  P pickup  |  D drop  |  R reset  |  Q quitter",
+            "↑↓←→ déplacer  |  P pickup  |  D drop  |  R ou Restart  |  Q quitter",
             True, C["muted"]
         )
         self.screen.blit(hint, (10, hud_y + 58))

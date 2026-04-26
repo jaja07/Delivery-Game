@@ -2,7 +2,7 @@ from enum import IntEnum
 
 # Constantes de la grille
 GRID_W, GRID_H = 20, 20
-CELL           = 36
+CELL           = 28
 HUD_H          = 80
 WIN_W          = GRID_W * CELL
 WIN_H          = GRID_H * CELL + HUD_H
@@ -46,6 +46,7 @@ class Action(IntEnum):
     PICKUP = 4
     DROP   = 5
 
+# Deltas de déplacement pour les actions de mouvement
 ACTION_DELTAS = {
     Action.UP:    (-1,  0),
     Action.DOWN:  ( 1,  0),
