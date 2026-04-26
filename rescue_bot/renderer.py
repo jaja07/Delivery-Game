@@ -8,10 +8,10 @@ class Renderer:
         pygame.init()
         self.env = env
         
-        # 1. Fenêtre physique visible par l'utilisateur (Redimensionnable)
+        # 1. Physical window visible to the user (resizable)
         self.window = pygame.display.set_mode((WIN_W, WIN_H), pygame.RESIZABLE)
         
-        # 2. Surface de dessin interne (Taille fixe)
+        # 2. Internal drawing surface (fixed size)
         self.screen = pygame.Surface((WIN_W, WIN_H))
         
         pygame.display.set_caption("RescueBot — Deep RL")
@@ -23,14 +23,14 @@ class Renderer:
         self.restart_btn_rect = pygame.Rect(WIN_W - 130, GRID_H * CELL + 24, 112, 30)
 
     def _virtual_mouse_pos(self):
-        """Convertit la position souris fenetre vers la surface de dessin fixe."""
+        """Convert window mouse coordinates to fixed drawing-surface coordinates."""
         raw_mouse_pos = pygame.mouse.get_pos()
         win_w, win_h = self.window.get_size()
         scale_x, scale_y = win_w / WIN_W, win_h / WIN_H
         return (raw_mouse_pos[0] / scale_x, raw_mouse_pos[1] / scale_y)
 
     def is_restart_click(self, event: pygame.event.Event) -> bool:
-        """Retourne True si l'evenement correspond au clic du bouton Restart HUD."""
+        """Return True when the event matches a click on the HUD Restart button."""
         if event.type != pygame.MOUSEBUTTONDOWN or event.button != 1:
             return False
         return self.restart_btn_rect.collidepoint(self._virtual_mouse_pos())
@@ -38,7 +38,7 @@ class Renderer:
     def draw(self, total_reward: float = 0.0, last_event: str = ""):
         self._fire_tick += 1
         
-        # On dessine tout sur la surface interne (self.screen)
+        # Draw everything on the internal surface (`self.screen`).
         self.screen.fill(C["bg"])
         self._draw_grid()
         self._draw_evac_zones()
@@ -48,21 +48,21 @@ class Renderer:
         self._draw_perception_overlay()
         self._draw_hud(total_reward, last_event)
         
-        # 3. MISE À L'ÉCHELLE DYNAMIQUE : On étire l'image sur la fenêtre réelle
+        # 3. DYNAMIC SCALING: stretch the rendered image to the actual window size.
         scaled_surface = pygame.transform.smoothscale(self.screen, self.window.get_size())
         self.window.blit(scaled_surface, (0, 0))
         
         pygame.display.flip()
 
     def _draw_grid(self):
-        """Dessine le fond de la carte avec murs, cases vides et quadrillage."""
+        """Draw the map background with walls, empty cells, and grid lines."""
         for r in range(GRID_H):
             for c in range(GRID_W):
                 rect = pygame.Rect(c * CELL, r * CELL, CELL, CELL)
                 cell = self.env.grid[r, c]
                 if cell == Cell.WALL:
                     pygame.draw.rect(self.screen, C["wall"], rect)
-                    # Texture débris
+                    # Debris texture
                     for _ in range(3):
                         bx = rect.x + random.randint(2, CELL - 6)
                         by = rect.y + random.randint(2, CELL - 6)
@@ -72,19 +72,19 @@ class Renderer:
                 pygame.draw.rect(self.screen, C["grid"], rect, 1)
 
     def _draw_danger_zones(self):
-        """Dessine les zones dangereuses avec un effet de feu animé."""
+        """Draw dangerous zones with an animated fire effect."""
         tick = self.env.steps
         for r in range(GRID_H):
             for c in range(GRID_W):
                 if self.env.grid[r, c] == Cell.DANGER:
                     rect = pygame.Rect(c * CELL, r * CELL, CELL, CELL)
                     pygame.draw.rect(self.screen, C["danger"], rect)
-                    # Effet feu animé
+                    # Animated fire glow
                     alpha = 120 + int(60 * abs(((tick + r + c) % 20) / 10 - 1))
                     s = pygame.Surface((CELL, CELL), pygame.SRCALPHA)
                     s.fill((*C["danger_glow"], alpha))
                     self.screen.blit(s, rect.topleft)
-                    # Flammes
+                    # Flame shapes
                     cx, cy = rect.centerx, rect.centery
                     h = CELL // 2 - 2 + int(4 * abs(((tick * 2 + r) % 10) / 5 - 1))
                     points = [(cx - 4, cy + 4), (cx, cy - h), (cx + 4, cy + 4)]
@@ -93,14 +93,14 @@ class Renderer:
                     pygame.draw.polygon(self.screen, C["fire2"], points2)
 
     def _draw_evac_zones(self):
-        """Dessine les points d'évacuation et leur symbole visuel."""
+        """Draw evacuation zones and their visual symbols."""
         for r in range(GRID_H):
             for c in range(GRID_W):
                 if self.env.grid[r, c] == Cell.EVAC:
                     rect = pygame.Rect(c * CELL, r * CELL, CELL, CELL)
                     pygame.draw.rect(self.screen, C["evac"], rect)
                     pygame.draw.rect(self.screen, C["evac_border"], rect, 2)
-                    # Croix médicale
+                    # Medical cross symbol
                     cx, cy = rect.centerx, rect.centery
                     hw = 4
                     pygame.draw.rect(self.screen, C["accent"], (cx - hw, cy - 1, hw * 2, 3))
@@ -109,7 +109,7 @@ class Renderer:
                     self.screen.blit(txt, (rect.x + 2, rect.bottom - 13))
 
     def _draw_survivors(self):
-        """Dessine les survivants encore actifs sur la carte."""
+        """Draw survivors that are still active on the map."""
         for s in self.env.survivors:
             if s["rescued"]:
                 continue
@@ -118,31 +118,31 @@ class Renderer:
             r  = CELL // 2 - 4
             pygame.draw.circle(self.screen, C["survivor"], (cx, cy), r)
             pygame.draw.circle(self.screen, (252, 211, 77), (cx, cy), r, 2)
-            # Icône personne
+            # Person icon
             pygame.draw.circle(self.screen, (30, 20, 5), (cx, cy - 3), 3)
             pygame.draw.line(self.screen, (30, 20, 5), (cx, cy - 1), (cx, cy + 5), 2)
             txt = self.font_s.render("S", True, (30, 20, 5))
             self.screen.blit(txt, (cx - 3, cy + 3))
 
     def _draw_robot(self):
-        """Dessine le robot, ses détails visuels et l'indicateur de portage."""
+        """Draw the robot, its visual details, and carrying indicator."""
         env = self.env
         cx  = env.robot_x * CELL + CELL // 2
         cy  = env.robot_y * CELL + CELL // 2
         r   = CELL // 2 - 3
         col = C["robot_c"] if env.carrying else C["robot"]
-        # Corps
+        # Body
         pygame.draw.circle(self.screen, col, (cx, cy), r)
         pygame.draw.circle(self.screen, C["accent"], (cx, cy), r, 2)
-        # Yeux
+        # Eyes
         pygame.draw.circle(self.screen, (255, 255, 255), (cx - 4, cy - 2), 3)
         pygame.draw.circle(self.screen, (255, 255, 255), (cx + 4, cy - 2), 3)
         pygame.draw.circle(self.screen, (10, 10, 10), (cx - 4, cy - 2), 1)
         pygame.draw.circle(self.screen, (10, 10, 10), (cx + 4, cy - 2), 1)
-        # Bouche
+        # Mouth
         pygame.draw.arc(self.screen, (255, 255, 255),
                         (cx - 4, cy + 1, 8, 5), 3.14, 0, 2)
-        # Survivant porté
+        # Carried survivor
         if env.carrying:
             pygame.draw.circle(self.screen, C["survivor"], (cx + r - 2, cy - r + 2), 4)
         # Label
@@ -150,7 +150,7 @@ class Renderer:
         self.screen.blit(lbl, (cx - 8, cy + 6))
 
     def _draw_perception_overlay(self):
-        """Surligne la fenêtre locale de perception centrée sur le robot."""
+        """Highlight the local perception window centered on the robot."""
         P   = self.env.PERCEPTION_R
         env = self.env
         s   = pygame.Surface((CELL, CELL), pygame.SRCALPHA)
@@ -160,14 +160,14 @@ class Renderer:
                 nr, nc = env.robot_y + dr, env.robot_x + dc
                 if 0 <= nr < GRID_H and 0 <= nc < GRID_W:
                     self.screen.blit(s, (nc * CELL, nr * CELL))
-        # Bordure
+        # Border
         ox = (env.robot_x - P) * CELL
         oy = (env.robot_y - P) * CELL
         pygame.draw.rect(self.screen, (*C["accent"], 180),
                          (ox, oy, CELL * (2*P+1), CELL * (2*P+1)), 1)
 
     def _draw_hud(self, total_reward: float, last_event: str):
-        """Dessine la barre d'information: stats de l'épisode et aide clavier."""
+        """Draw the information bar: episode stats and keyboard help."""
         hud_y = GRID_H * CELL
         pygame.draw.rect(self.screen, C["hud_bg"], (0, hud_y, WIN_W, HUD_H))
         pygame.draw.line(self.screen, C["accent"], (0, hud_y), (WIN_W, hud_y), 1)
@@ -176,12 +176,12 @@ class Renderer:
         remaining = sum(1 for s in env.survivors if not s["rescued"])
 
         items = [
-            ("Pas",       str(env.steps)),
-            ("Évacués",   str(env.rescued)),
-            ("Restants",  str(remaining)),
-            ("Porte",     "Oui" if env.carrying else "Non"),
+            ("Steps",     str(env.steps)),
+            ("Evacuated", str(env.rescued)),
+            ("Remaining", str(remaining)),
+            ("Carrying",  "Yes" if env.carrying else "No"),
             ("Reward",    f"{total_reward:.1f}"),
-            ("Événement", last_event or "—"),
+            ("Event",     last_event or "—"),
         ]
         x = 10
         for label, val in items:
@@ -191,7 +191,7 @@ class Renderer:
             self.screen.blit(val_txt, (x, hud_y + 26))
             x += max(lbl.get_width(), val_txt.get_width()) + 20
 
-        # Bouton Restart cliquable
+        # Clickable Restart button
         mouse_pos = self._virtual_mouse_pos()
         btn_color = C["robot_c"] if self.restart_btn_rect.collidepoint(mouse_pos) else C["robot"]
         pygame.draw.rect(self.screen, btn_color, self.restart_btn_rect, border_radius=7)
@@ -205,17 +205,17 @@ class Renderer:
             ),
         )
 
-        # Légende touches
+        # Keyboard legend
         hint = self.font_s.render(
-            "↑↓←→ déplacer  |  P pickup  |  D drop  |  R ou Restart  |  Q quitter",
+            "↑↓←→ move  |  P pickup  |  D drop  |  R or Restart  |  Q quit",
             True, C["muted"]
         )
         self.screen.blit(hint, (10, hud_y + 58))
 
     def tick(self, fps: int = FPS):
-        """Cadence la boucle de rendu à la fréquence demandée."""
+        """Run the render loop at the requested frame rate."""
         self.clock.tick(fps)
 
     def close(self):
-        """Ferme proprement les ressources graphiques Pygame."""
+        """Cleanly close Pygame graphics resources."""
         pygame.quit()

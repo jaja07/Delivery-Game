@@ -1,6 +1,7 @@
 import argparse
 import sys
 import os
+from pathlib import Path
 import pygame
 import random
 import torch
@@ -10,9 +11,27 @@ from rescue_bot.renderer import Renderer
 from rescue_bot.config import Action, FPS, WIN_W, WIN_H
 from rescue_bot.policy import PolicyNet
 
+
+def resolve_model_path(model_arg: str) -> str:
+    """Resolve model path from common execution locations."""
+    candidate = Path(model_arg)
+    if candidate.exists():
+        return str(candidate)
+
+    module_dir = Path(__file__).resolve().parent
+    search_paths = [
+        module_dir / model_arg,        # Running from outside `rescue_bot/`
+        module_dir.parent / model_arg, # Running from project root
+    ]
+    for path in search_paths:
+        if path.exists():
+            return str(path)
+
+    # Fallback to the original value so error handling keeps clear user input.
+    return model_arg
+
 def show_menu(renderer: Renderer):
-    """Affiche le menu principal et attend le choix du joueur."""
-    # Polices d'écriture
+    """Display the main menu and wait for the player's choice."""
     font_title = pygame.font.SysFont("monospace", 45, bold=True)
     font_desc = pygame.font.SysFont("monospace", 15)
     font_btn = pygame.font.SysFont("monospace", 20, bold=True)
@@ -25,40 +44,40 @@ def show_menu(renderer: Renderer):
     btn_auto = pygame.Rect(WIN_W // 2 - btn_w // 2, 350, btn_w, btn_h)
     
     description = [
-        "Bienvenue dans RescueBot !", "",
-        "Une catastrophe a eu lieu. Votre mission est",
-        "de secourir les survivants isolés (ronds jaunes).",
-        "Évitez les zones d'incendie et déposez les",
-        "blessés sur les zones d'évacuation (croix vertes).", "",
-        "Faites vite, chaque déplacement vous coûte des points !"
+        "Welcome to RescueBot!", "",
+        "A disaster has struck. Your mission is",
+        "to rescue isolated survivors (yellow circles).",
+        "Avoid fire zones and drop survivors",
+        "at evacuation zones (green crosses).", "",
+        "Move quickly, every step costs you points!"
     ]
 
     while True:
-        renderer.screen.fill(c_bg) # Dessin sur le canevas fixe
+        renderer.screen.fill(c_bg) # Draw on the fixed internal canvas.
         
-        # --- Gestion du redimensionnement de la souris ---
+        # --- Mouse position handling under window resizing ---
         raw_mouse_pos = pygame.mouse.get_pos()
         win_w, win_h = renderer.window.get_size()
         scale_x, scale_y = win_w / WIN_W, win_h / WIN_H
-        # Position virtuelle de la souris sur la surface originale
+        # Virtual mouse position on the original surface
         mouse_pos = (raw_mouse_pos[0] / scale_x, raw_mouse_pos[1] / scale_y)
         
-        # Textes
+        # Text
         title = font_title.render("RESCUE BOT", True, c_title)
         renderer.screen.blit(title, (WIN_W // 2 - title.get_width() // 2, 60))
         for i, line in enumerate(description):
             txt = font_desc.render(line, True, c_text)
             renderer.screen.blit(txt, (WIN_W // 2 - txt.get_width() // 2, 130 + i * 20))
             
-        # Boutons
-        for btn, text in [(btn_manual, "Jouer (Mode Manuel)"), (btn_auto, "Observer (Mode IA)")]:
+        # Buttons
+        for btn, text in [(btn_manual, "Play (Manual Mode)"), (btn_auto, "Watch (AI Mode)")]:
             color = c_btn_hover if btn.collidepoint(mouse_pos) else c_btn
             pygame.draw.rect(renderer.screen, color, btn, border_radius=8)
             txt_surf = font_btn.render(text, True, c_bg)
             renderer.screen.blit(txt_surf, (btn.x + btn.width // 2 - txt_surf.get_width() // 2, 
                                             btn.y + btn.height // 2 - txt_surf.get_height() // 2))
             
-        # Affichage à l'écran avec mise à l'échelle
+        # Display on screen with scaling
         scaled_surface = pygame.transform.smoothscale(renderer.screen, (win_w, win_h))
         renderer.window.blit(scaled_surface, (0, 0))
         pygame.display.flip()
@@ -76,7 +95,7 @@ def show_menu(renderer: Renderer):
         renderer.clock.tick(30)
 
 def run_human(env: RescueBotEnv, renderer: Renderer):
-    """Mode joueur humain — contrôle au clavier."""
+    """Human player mode using keyboard controls."""
     total_reward = 0.0
     last_event   = ""
     obs          = env.reset()
@@ -115,7 +134,7 @@ def run_human(env: RescueBotEnv, renderer: Renderer):
                     if event.key == pygame.K_p:     action = Action.PICKUP
                     if event.key == pygame.K_d:     action = Action.DROP
 
-        # Déplacement continu quand une flèche reste enfoncée
+        # Continuous movement while an arrow key is held down
         if action is None and not done:
             keys = pygame.key.get_pressed()
             now = pygame.time.get_ticks()
@@ -136,28 +155,28 @@ def run_human(env: RescueBotEnv, renderer: Renderer):
             if action in (Action.UP, Action.DOWN, Action.LEFT, Action.RIGHT):
                 next_move_at = pygame.time.get_ticks() + move_repeat_ms
             if done:
-                last_event = "Partie terminee - clique Restart ou appuie R"
+                last_event = "Game over - click Restart or press R"
 
         renderer.draw(total_reward, last_event)
         renderer.tick(30)
 
 def run_trained(env: RescueBotEnv, renderer: Renderer, model_path: str):
-    """Mode agent entraîné — utilise le modèle PyTorch sauvegardé."""
+    """Trained-agent mode using a saved PyTorch model."""
     if not os.path.exists(model_path):
-        print(f"⚠️ Erreur: Modèle '{model_path}' introuvable.")
-        print("Avez-vous terminé l'entraînement et sauvegardé le modèle ?")
-        print("Lancement du mode humain par défaut.")
+        print(f"Error: model '{model_path}' was not found.")
+        print("Did you finish training and save the model?")
+        print("Starting human mode by default.")
         run_human(env, renderer)
         return
 
-    # Chargement du réseau
+    # Load the policy network
     policy = PolicyNet(obs_size=env.obs_size, n_actions=env.n_actions)
     policy.load_state_dict(torch.load(model_path, weights_only=True))
     policy.eval()
 
     obs = env.reset()
     total_reward = 0.0
-    last_event = "Modèle chargé"
+    last_event = "Model loaded"
     episode = 0
 
     while True:
@@ -181,29 +200,31 @@ def run_trained(env: RescueBotEnv, renderer: Renderer, model_path: str):
 
         if done:
             episode += 1
-            print(f"Épisode {episode:4d} | Récompense : {total_reward:7.1f} | Évacués : {env.rescued}")
+            print(f"Episode {episode:4d} | Reward: {total_reward:7.1f} | Evacuated: {env.rescued}")
             obs = env.reset()
             total_reward = 0.0
-            last_event = "nouvel épisode"
+            last_event = "new episode"
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", type=str, default="rescue_bot_policy.pth", help="Chemin du modèle IA")
+    parser.add_argument("--model", type=str, default="rescue_bot_policy.pth", help="Path to the AI model")
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
 
-    # Initialisation de l'environnement et du rendu
+    resolved_model_path = resolve_model_path(args.model)
+
+    # Initialize environment and renderer
     env      = RescueBotEnv(seed=args.seed)
     renderer = Renderer(env)
 
-    # Affichage du menu
+    # Show menu
     mode = show_menu(renderer)
 
-    # Lancement selon le choix
+    # Start selected mode
     if mode == "manual":
         run_human(env, renderer)
     elif mode == "auto":
-        run_trained(env, renderer, args.model)
+        run_trained(env, renderer, resolved_model_path)
 
 if __name__ == "__main__":
     main()

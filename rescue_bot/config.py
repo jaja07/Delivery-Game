@@ -1,6 +1,6 @@
 from enum import IntEnum
 
-# Constantes de la grille
+# Grid constants
 GRID_W, GRID_H = 20, 20
 CELL           = 28
 HUD_H          = 80
@@ -8,7 +8,7 @@ WIN_W          = GRID_W * CELL
 WIN_H          = GRID_H * CELL + HUD_H
 FPS            = 10
 
-# Couleurs
+# Colors
 C = {
     "bg":       (10,  25,  40),
     "empty":    (15,  30,  48),
@@ -30,7 +30,7 @@ C = {
     "fire2":    (255, 180, 50),
 }
 
-# Types de cellules
+# Cell types
 class Cell(IntEnum):
     EMPTY  = 0
     WALL   = 1
@@ -46,7 +46,7 @@ class Action(IntEnum):
     PICKUP = 4
     DROP   = 5
 
-# Deltas de déplacement pour les actions de mouvement
+# Movement deltas for movement actions
 ACTION_DELTAS = {
     Action.UP:    (-1,  0),
     Action.DOWN:  ( 1,  0),
